@@ -1,0 +1,27 @@
+[project]
+name = "domain-types-linter"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Pavel Maksimov", email = "vur21@yandex.ru" }
+]
+requires-python = ">=3.10"
+dependencies = [
+    "flake8>=7.2.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.5",
+]
+
+[project.entry-points."flake8.extension"]
+DT = "domain_types_linter.flake8_plugin:DomainTypesLinter"
+
+[project.scripts]
+dt-linter = "..."
