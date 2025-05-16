@@ -1,27 +1,44 @@
 [project]
 name = "domain-types-linter"
-version = "0.1.0"
-description = "Add your description here"
+version = "1.0.0"
+description = "A static code analyzer that enforces the use of domain-specific types in business logic code instead of universal types"
 readme = "README.md"
 authors = [
     { name = "Pavel Maksimov", email = "vur21@yandex.ru" }
 ]
 requires-python = ">=3.10"
-dependencies = [
-    "flake8>=7.2.0",
-]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[project.optional-dependencies]
+flake8 = [
+    "flake8>=7.2.0",
+]
 [dependency-groups]
 dev = [
     "pytest>=8.3.5",
 ]
 
+[project.urls]
+"Homepage" = "https://github.com/pavelmaksimov/domain-types-linter"
+"Bug Tracker" = "https://github.com/pavelmaksimov/domain-types-linter/issues"
+
 [project.entry-points."flake8.extension"]
 DT = "domain_types_linter.flake8_plugin:DomainTypesLinter"
 
 [project.scripts]
-dt-linter = "..."
+dt-linter = "domain_types_linter.cli:main"
+
+[tool.ruff]
+line-length = 100
+indent-width = 4
+target-version = "py310"
+include = ["src/**/*.py", "tests/**/*.py"]
+
+[tool.ruff.format]
+line-ending = "lf"
+
+[tool.ruff.lint.flake8-copyright]
+author = "Ruff"

@@ -4,20 +4,18 @@ from typing import *
 UserId = NewType("UserId", int)
 
 alias_str = str
-type type_alias_str = str
 typing_type_alias_str: TypeAlias = str
 
 
-class MiniType:
+class DomainDataType:
     ...
 
 
-# Примеры которые запрещены:
+# Examples of universal types that should be found by a linter:
 def disallowed_types(
     my_str: str,
     my_alias_str: alias_str,
-    type_alias_str: type_alias_str,  # TODO: check
-    typing_type_alias_str: typing_type_alias_str,  # TODO: check
+    typing_type_alias_str: typing_type_alias_str,
     my_int: int,
     my_float: float,
     my_complex: complex,
@@ -26,8 +24,8 @@ def disallowed_types(
     my_any: Any,
     my_anystr: AnyStr,
     my_decimal: Decimal,
-    my_dict_minitype_int: dict[MiniType, int],
-    my_dict_minitype_list: dict[MiniType, List[Union[int, MiniType]]],
+    my_dict_minitype_int: dict[DomainDataType, int],
+    my_dict_minitype_list: dict[DomainDataType, List[Union[int, DomainDataType]]],
     my_dict_str_dict: dict[str, dict[Union[int, str], int]],
     my_dict_alias_str: dict[alias_str],
     my_list_str: list[str],
@@ -35,7 +33,6 @@ def disallowed_types(
     my_set_int_lower: set[int],
     my_frozenset_int_lower: frozenset[int],
     my_type_union: Type[Union[int, str]],
-    my_classvar_int: ClassVar[int],
     my_iterable_int: Iterable[int],
     my_async_iterable_int: AsyncIterable[int],
     my_async_generator_int: AsyncGenerator[int, None],
@@ -61,8 +58,9 @@ def disallowed_types(
     my_optional_int: Optional[int],
     my_tuple_int: Tuple[int, ...],
     my_union_int_str: Union[int, str],
-    my_annotated_int: Annotated[int, "meta"],  # TODO: check,
-    # Не уточненные типы, которые потенциально могут содержать универсальные типы, запрещены:,
+    my_annotated_int: Annotated[int, "meta"],
+    # Types of collections, containers and other types that should be found by a linter because they may contain
+    # universal types.
     my_dict: dict,
     my_set: set,
     my_tuple: tuple,
@@ -90,49 +88,48 @@ def disallowed_types(
     my_generator: Generator,
     my_optional: Optional,
     my_tuple_simple: Tuple,
-    my_final: Final = 0,
-    my_final_int: Final[int] = 3,
-): ...
+    my_type: type,
+    my_type_object: Type,
+):
+    ...
 
-# Примеры которые разрешены:
+
+# Types for classes that may contain universal types should be found by a linter:
+class DomainClass:
+    my_classvar_int: ClassVar[int]
+    my_final: Final = 0
+    my_final_int: Final[int] = 3
 
 
+# Examples that should not be found by a linter:
 def allowed_types(
     my_bool: bool,
-    my_none: None,
-    my_type: type,
     my_bool_none: bool | None,
-    my_type_object: Type,
+    my_none: None,
     my_userid: UserId,
-    my_minitype: MiniType,
+    my_minitype: DomainDataType,
     my_callable: Callable,
     my_callable_func: Callable[[], None],
-    # ... и т.д. приведены примеры не со всеми разрешенными типами.,
-    # Типы контейнеров, которые уточнены явными типами, разрешены:,
+    # etc. Examples are not given with all permitted types.,
+    # Types of containers and collections that are clarified by domain types are allowed:,
     my_iterable_userid: Iterable[UserId],
     my_async_iterable_userid: AsyncIterable[UserId],
     my_async_generator_userid: AsyncGenerator[UserId, None],
     my_iterator_userid: Iterator[UserId],
     my_async_iterator_userid: AsyncIterator[UserId],
     my_container_userid: Container[UserId],
-    my_mapping_userid_minitype: Mapping[UserId, MiniType],
-    my_dict_userid_minitype: Dict[UserId, MiniType],
-    my_list_list_union: List[List[Union[UserId, MiniType]]],
+    my_mapping_userid_minitype: Mapping[UserId, DomainDataType],
+    my_dict_userid_minitype: Dict[UserId, DomainDataType],
+    my_list_list_union: List[List[Union[UserId, DomainDataType]]],
     my_set_userid: Set[UserId],
     my_tuple_userid: Tuple[UserId, ...],
     my_frozenset_userid: FrozenSet[UserId],
-    my_dict_userid_minitype_lower: dict[UserId, MiniType],
-    my_list_list_union_lower: list[list[UserId | MiniType]],
+    my_dict_userid_minitype_lower: dict[UserId, DomainDataType],
+    my_list_list_union_lower: list[list[UserId | DomainDataType]],
     my_set_userid_lower: set[UserId],
     my_tuple_userid_lower: tuple[UserId, ...],
     my_frozenset_userid_lower: frozenset[UserId],
-    # ... и т.д. приведены примеры не со всеми типами контейнеров.
-): ...
-
-
-# TODO:
-a = 3         # Has type ``int``
-b = int       # Has type ``type[int]``
-c = type(a)
-
- # TODO: Похоже тип type без уточнения надо тоже запретить.
+    my_optional_userid: Optional[UserId],
+    # etc. Examples are not given with all types of containers.
+):
+    ...
