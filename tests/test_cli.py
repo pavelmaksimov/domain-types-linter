@@ -7,6 +7,7 @@ from domain_types_linter.cli import main
 
 
 def test_cli_passes_path_to_linter():
+    """Test that the CLI correctly passes the provided path to the linter function."""
     test_path = "test_path"
 
     with patch("domain_types_linter.cli.scan_path") as scan_path:
@@ -19,6 +20,7 @@ def test_cli_passes_path_to_linter():
 
 
 def test_cli_exits_without_arguments():
+    """Test that the CLI exits with an error code when no arguments are provided."""
     with patch.object(sys, "argv", ["dt-linter"]):
         with pytest.raises(SystemExit) as excinfo:
             main()
