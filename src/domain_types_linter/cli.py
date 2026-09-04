@@ -16,7 +16,7 @@ def main():
 
     problems_found = scan_path(args.path)
 
-    if problems_found:
+    if any(problems for _, problems in problems_found):
         sys.exit(1)
 
     print("All checks have been successful!")

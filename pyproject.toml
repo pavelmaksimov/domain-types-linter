@@ -1,6 +1,6 @@
 [project]
 name = "domain-types-linter"
-version = "1.0.0"
+version = "1.0.1"
 description = "A static code analyzer that enforces the use of domain-specific types in business logic code instead of universal types"
 readme = "README.md"
 authors = [

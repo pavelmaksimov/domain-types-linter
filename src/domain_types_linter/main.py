@@ -343,8 +343,8 @@ def scan_path(path: str) -> List[Tuple[Path, List[Problem]]]:
         return [(path_obj, scan_file(path))]
 
     elif path_obj.is_dir():
-        for path in path_obj.rglob("*.py"):
-            problems.append((path_obj, scan_file(str(path))))
+        for file_path in path_obj.rglob("*.py"):
+            problems.append((file_path, scan_file(str(file_path))))
 
         return problems
 
