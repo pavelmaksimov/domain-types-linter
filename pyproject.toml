@@ -7,6 +7,9 @@ authors = [
     { name = "Pavel Maksimov", email = "vur21@yandex.ru" }
 ]
 requires-python = ">=3.10"
+dependencies = [
+    "tomli>=1.1.0; python_version < '3.11'",
+]
 
 [build-system]
 requires = ["hatchling"]

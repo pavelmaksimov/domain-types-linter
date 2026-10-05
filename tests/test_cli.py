@@ -1,6 +1,6 @@
 import sys
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 import pytest
 
@@ -32,7 +32,7 @@ def test_cli_passes_path_to_linter():
             with pytest.raises(SystemExit) as excinfo:
                 main()
 
-        scan_path.assert_called_once_with(test_path)
+        scan_path.assert_called_once_with(test_path, ANY)
         assert excinfo.value.code == 1
 
 
@@ -54,3 +54,29 @@ def test_cli_exits_without_arguments():
             main()
 
         assert excinfo.value.code != 0
+
+
+def test_cli_frequent_options_override_config():
+    """Test that frequent mode options from the command line override the config."""
+    with patch("domain_types_linter.cli.scan_path") as scan_path:
+        scan_path.return_value = _clean_result()
+        argv = ["dt-linter", "test_path", "--frequent", "--min-occurrences", "5"]
+        with patch.object(sys, "argv", argv):
+            main()
+
+        config = scan_path.call_args.args[1]
+        assert config.frequent
+        assert config.min_occurrences == 5
+        assert config.min_modules == 1
+
+
+def test_cli_exits_with_config_error(tmp_path):
+    """Test that the CLI exits with code 2 if the config is invalid."""
+    config_path = tmp_path / "pyproject.toml"
+    config_path.write_text("[tool.domain-types-linter]\nunknown = 1\n")
+
+    with patch.object(sys, "argv", ["dt-linter", str(tmp_path), "--config", str(config_path)]):
+        with pytest.raises(SystemExit) as excinfo:
+            main()
+
+    assert excinfo.value.code == 2
