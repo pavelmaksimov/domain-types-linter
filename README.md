@@ -37,7 +37,8 @@ You can run the linter directly from the command line:
 dt-linter path/to/file_or_directory
 ```
 
-The linter will scan the specified file or directory recursively and report any domain type violations. 
+The linter will scan the specified file or directory recursively and report any domain type violations
+in annotations of functions (including `async` functions), class attributes and variables.
 It will exit with code 1 if problems are found.
 
 ### Flake8 Plugin
@@ -48,6 +49,71 @@ flake8 path/to/file_or_directory
 ```
 
 The domain type violations will be reported along with other Flake8 errors.
+
+## Configuration
+
+Keeping domain types for every function is expensive. A helper that is used in one module
+rarely needs its own domain types. The rules can be relaxed in the `[tool.domain-types-linter]`
+section of `pyproject.toml`. Both the CLI and the Flake8 plugin use the closest `pyproject.toml`
+with this section. By default, all checks are enabled.
+
+```toml
+[tool.domain-types-linter]
+# Check only these paths (relative to the directory of pyproject.toml).
+include = ["src/app/domain", "src/app/services"]
+# Skip these paths. "*" also matches "/", e.g. "*/migrations/*".
+exclude = ["src/app/services/legacy", "*/migrations/*"]
+# Types that are allowed everywhere.
+allowed-types = ["bool", "Any"]
+# Check functions, methods and classes whose names start with "_" (except dunder methods like __init__).
+check-private = false
+# Check functions and classes defined inside other functions.
+check-nested = false
+# Check annotations of local variables inside functions (class and module attributes are always checked).
+check-local-variables = false
+# Frequent mode, see below (CLI only).
+frequent = false
+min-occurrences = 3
+min-modules = 1
+```
+
+A pattern in `include` and `exclude` matches a file if it is the file path, one of its parent
+directories, or a glob that matches the path.
+
+Use `--config path/to/pyproject.toml` to point the CLI to a specific config file.
+
+### Frequent mode
+
+A domain type is worth creating for a concept that is used in many places.
+In frequent mode the linter reports only names of parameters, attributes and variables
+that are annotated with universal types at least `min-occurrences` times
+in at least `min-modules` modules:
+
+```bash
+dt-linter src --frequent --min-occurrences 3 --min-modules 2
+```
+
+```
+src/users.py:4: DT004 forbidden to use universal type 'int' ('user_id' is annotated with universal types 14 times in 6 module(s), consider a domain type)
+```
+
+Names are compared without leading underscores, so `_user_id` and `user_id` are counted together.
+Return annotations have no name and are not reported in this mode.
+Frequent mode needs the whole project, so it is available in the CLI only and is ignored by the Flake8 plugin.
+
+### Suppressing problems
+
+- `# noqa` or `# noqa: DT004` at the end of a line suppresses problems on that line
+  (in the CLI; Flake8 handles `noqa` comments itself).
+- `# dt: ignore` on the line of a `def` or `class` skips the whole function or class,
+  including its body. Works in the CLI and in the Flake8 plugin.
+
+```python
+def parse_row(row: dict) -> tuple:  # dt: ignore
+    ...
+
+def get_user(user_id: int, raw: str): ...  # noqa: DT003
+```
 
 ## Examples
 
