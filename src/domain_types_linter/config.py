@@ -28,6 +28,8 @@ class Config:
         check_local_variables: Check annotations of local variables inside functions
         exclude_functions: Function and method names to skip entirely, with their bodies
             (e.g. "to_dict"). Dunders with protocol-fixed signatures are skipped by default
+        baseline: Path to a baseline file with known problems to ignore
+            (one "filepath:line: CODE" per line; line "0" matches any line)
         frequent: Report only names that are annotated with universal types often (CLI only)
         min_occurrences: Minimum number of annotations of a name to report it in frequent mode
         min_modules: Minimum number of modules a name must appear in to report it in frequent mode
@@ -41,6 +43,7 @@ class Config:
     check_nested: bool = True
     check_local_variables: bool = True
     exclude_functions: List[str] = field(default_factory=list)
+    baseline: str = ""
     frequent: bool = False
     min_occurrences: int = 3
     min_modules: int = 1
@@ -108,6 +111,7 @@ _KEYS = {
     "check-nested": ("check_nested", bool),
     "check-local-variables": ("check_local_variables", bool),
     "exclude-functions": ("exclude_functions", list),
+    "baseline": ("baseline", str),
     "frequent": ("frequent", bool),
     "min-occurrences": ("min_occurrences", int),
     "min-modules": ("min_modules", int),

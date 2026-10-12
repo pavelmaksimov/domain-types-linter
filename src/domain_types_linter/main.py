@@ -5,7 +5,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum, auto
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional, Union
+from typing import Dict, List, Set, Tuple, Optional, Union
 
 from domain_types_linter.config import Config, find_config
 from domain_types_linter.types_and_codes import (
@@ -114,6 +114,8 @@ class Problem:
 
     def get_problem_message(self) -> str:
         message = self._get_base_message()
+        if self.target_name:
+            message = f"'{self.target_name}' {message}"
         if self.note:
             return f"{message} ({self.note})"
         return message
@@ -244,12 +246,19 @@ class Linter(ast.NodeVisitor):
 
         Checks the type annotation in the assignment.
         Local variables are skipped if check_local_variables is disabled.
+        Attributes and functions listed in Config.exclude_functions are skipped with their bodies.
         """
         is_local = bool(self._scopes) and self._scopes[-1] == "function"
+
+        if get_target_name(node.target) in self.config.exclude_functions:
+            return
+        if get_target_name(node.target) in DEFAULT_EXCLUDED_FUNCTIONS:
+            return
 
         if node.annotation and (self.config.check_local_variables or not is_local):
             self.check_target_annotation(node.annotation, get_target_name(node.target))
         self.generic_visit(node)
+
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         """Visit a class definition node.
@@ -508,6 +517,63 @@ def filter_frequent(
 
     return [p for p in problems if id(p) in kept]
 
+def load_baseline(baseline_path: str, root: Path) -> Set[Tuple[str, int, str]]:
+    """Load known problems to ignore: one "filepath:line: CODE" per line.
+
+    Paths are stored relative to the config root; line "0" matches any line.
+    Missing file means an empty baseline. Unparseable lines raise ValueError.
+    """
+    path = Path(baseline_path)
+    if not path.is_absolute():
+        path = root / path
+    if not path.is_file():
+        return set()
+
+    entries: Set[Tuple[str, int, str]] = set()
+    for lineno, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = [p.strip() for p in line.split(":")]
+        if len(parts) != 3 or not parts[0] or not parts[2]:
+            raise ValueError(f"Invalid baseline entry on line {lineno}: {raw!r}")
+        try:
+            entry_line = int(parts[1])
+        except ValueError:
+            raise ValueError(f"Invalid baseline entry on line {lineno}: {raw!r}")
+        entries.add((parts[0], entry_line, parts[2].upper()))
+    return entries
+
+
+def apply_baseline(
+    results: List[Tuple[Path, List[Problem]]],
+    baseline: Set[Tuple[str, int, str]],
+    root: Path,
+) -> List[Tuple[Path, List[Problem]]]:
+    """Drop problems listed in the baseline."""
+    if not baseline:
+        return results
+    root = root.resolve()
+
+    def relative(filepath: str) -> str:
+        try:
+            return Path(filepath).resolve().relative_to(root).as_posix()
+        except ValueError:
+            return Path(filepath).as_posix()
+
+    return [
+        (
+            file_path,
+            [
+                p
+                for p in problems
+                if (relative(p.filepath), p.line_number, p.get_problem_code()) not in baseline
+                and (relative(p.filepath), 0, p.get_problem_code()) not in baseline
+            ],
+        )
+        for file_path, problems in results
+    ]
+
 
 def print_problems(filepath: str, problems: List[Problem]) -> None:
     """Print problems of a file to stderr."""
@@ -536,37 +602,40 @@ def scan_file(filepath: str, config: Optional[Config] = None) -> List[Problem]:
     return problems
 
 
-def scan_path(path: str, config: Optional[Config] = None) -> List[Tuple[Path, List[Problem]]]:
-    """Scan a file or directory for domain type violations.
+def scan_paths(
+    paths: List[str], config: Optional[Config] = None
+) -> List[Tuple[Path, List[Problem]]]:
+    """Scan files or directories for domain type violations.
 
-    If the path is a file, scans just that file.
-    If the path is a directory, recursively scans all Python files in it.
+    Each path is a file (scanned directly) or a directory (scanned recursively).
     Files are filtered by the include/exclude settings.
     In frequent mode only names that are annotated with universal types often are reported.
+    Problems listed in the baseline file are dropped.
     Prints any problems found to stderr.
 
     Args:
-        path: Path to the file or directory to scan
+        paths: Paths to files or directories to scan
         config: Linter settings (optional, searched in pyproject.toml if not given)
 
     Returns:
         List[Tuple[Path, List[Problem]]]: List of tuples containing the path and the problems found
 
     Raises:
-        ValueError: If the path does not exist
+        ValueError: If a path does not exist
     """
-    path_obj = Path(path)
     if config is None:
-        config = find_config(path_obj)
+        config = find_config(Path(paths[0]) if paths else Path.cwd())
 
-    if path_obj.is_file():
-        file_paths = [path_obj]
-
-    elif path_obj.is_dir():
-        file_paths = sorted(path_obj.rglob("*.py"))
-
-    else:
-        raise ValueError(f"The path does not exist {path}")
+    file_paths: List[Path] = []
+    for path in paths:
+        path_obj = Path(path)
+        if path_obj.is_file():
+            file_paths.append(path_obj)
+        elif path_obj.is_dir():
+            file_paths.extend(sorted(path_obj.rglob("*.py")))
+        else:
+            raise ValueError(f"The path does not exist {path}")
+    file_paths = sorted(set(file_paths))
 
     results = [
         (file_path, lint_file(str(file_path), config))
@@ -584,7 +653,15 @@ def scan_path(path: str, config: Optional[Config] = None) -> List[Tuple[Path, Li
             for file_path, problems in results
         ]
 
+    if config.baseline:
+        results = apply_baseline(results, load_baseline(config.baseline, config.root), config.root)
+
     for file_path, problems in results:
         print_problems(str(file_path), problems)
 
     return results
+
+
+def scan_path(path: str, config: Optional[Config] = None) -> List[Tuple[Path, List[Problem]]]:
+    """Scan a file or directory for domain type violations (see scan_paths)."""
+    return scan_paths([path], config)

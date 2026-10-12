@@ -34,11 +34,12 @@ pip install domain-types-linter[flake8]
 You can run the linter directly from the command line:
 
 ```bash
-dt-linter path/to/file_or_directory
+dt-linter path/to/first path/to/second
 ```
 
-The linter will scan the specified file or directory recursively and report any domain type violations
+The linter will scan the specified files or directories recursively and report any domain type violations
 in annotations of functions (including `async` functions), class attributes and variables.
+Messages name the annotated parameter, attribute or variable when it has one.
 It will exit with code 1 if problems are found.
 
 ### Flake8 Plugin
@@ -73,11 +74,25 @@ check-nested = false
 check-local-variables = false
 # Skip these functions and methods entirely, with their bodies (e.g. "to_dict", "__eq__").
 exclude-functions = ["to_dict"]
+# Ignore known problems listed in this file (see below).
+baseline = "baseline.txt"
 # Frequent mode, see below (CLI only).
 frequent = false
 min-occurrences = 3
 min-modules = 1
 ```
+
+### Baseline
+
+The baseline file lists known problems to ignore, one per line:
+
+```text
+# filepath relative to the config root, line "0" matches any line
+src/users.py:12: DT004
+src/orders.py:0: DT003
+```
+
+Pass it with `--baseline path/to/baseline.txt` or set `baseline` in the config.
 
 A pattern in `include` and `exclude` matches a file if it is the file path, one of its parent
 directories, or a glob that matches the path.

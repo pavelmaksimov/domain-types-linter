@@ -6,7 +6,7 @@ import pytest
 
 from domain_types_linter.config import Config, find_config, load_config
 from domain_types_linter.flake8_plugin import DomainTypesLinter, _config_cache
-from domain_types_linter.main import Linter, lint_file, scan_path
+from domain_types_linter.main import Linter, lint_file, scan_path, scan_paths
 
 
 def lint(code: str, config: Config = None):
@@ -350,3 +350,50 @@ def test_flake8_plugin_uses_pyproject_config(tmp_path):
         assert list(DomainTypesLinter(ast.parse(code), str(excluded), []).run()) == []
     finally:
         _config_cache.clear()
+
+def test_hash_attribute_is_skipped():
+    """Test that a __hash__ class attribute is skipped like the method."""
+    code = """
+    class Entity:
+        __hash__: None
+        other: int
+    """
+    assert lint(code) == [(4, "DT004")]
+
+
+def test_messages_include_target_names():
+    """Test that problem messages name the annotated parameter or attribute."""
+    code = "def get_user(user_id: int) -> str: ...\n"
+    linter = Linter(code.splitlines(), "test.py", None)
+    linter.visit(ast.parse(code))
+    messages = sorted(p.get_problem_message() for p in linter.problems)
+    assert messages == [
+        "'user_id' forbidden to use universal type 'int'",
+        "forbidden to use universal type 'str'",
+    ]
+
+
+def test_scan_multiple_paths(tmp_path):
+    """Test that several files and directories are scanned in one run."""
+    first = write(tmp_path / "a.py", "def a(x: int): ...\n")
+    write(tmp_path / "pkg/b.py", "def b(x: int): ...\n")
+    results = scan_paths([str(first), str(tmp_path / "pkg")], Config(root=tmp_path))
+    found = sorted(path.name for path, _ in results)
+    assert found == ["a.py", "b.py"]
+    assert all(problems for _, problems in results)
+
+
+def test_baseline_ignores_known_problems(tmp_path):
+    """Test that problems listed in the baseline file are dropped."""
+    module = write(tmp_path / "users.py", "def get_user(user_id: int): ...\n")
+    baseline = write(tmp_path / "baseline.txt", "users.py:1: DT004\n")
+    config = Config(root=tmp_path, baseline="baseline.txt")
+    assert scan_paths([str(module)], config) == [(module, [])]
+
+
+def test_baseline_zero_line_matches_any_line(tmp_path):
+    """Test that a baseline entry with line 0 matches the code anywhere."""
+    module = write(tmp_path / "users.py", "def get_user(user_id: int): ...\n")
+    write(tmp_path / "baseline.txt", "users.py:0: DT004\n")
+    config = Config(root=tmp_path, baseline="baseline.txt")
+    assert scan_paths([str(module)], config) == [(module, [])]

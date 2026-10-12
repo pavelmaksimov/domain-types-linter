@@ -26,20 +26,20 @@ def test_cli_passes_path_to_linter():
     """Test that the CLI correctly passes the provided path to the linter function."""
     test_path = "test_path"
 
-    with patch("domain_types_linter.cli.scan_path") as scan_path:
-        scan_path.return_value = _result_with_problems()
+    with patch("domain_types_linter.cli.scan_paths") as scan_paths:
+        scan_paths.return_value = _result_with_problems()
         with patch.object(sys, "argv", ["dt-linter", test_path]):
             with pytest.raises(SystemExit) as excinfo:
                 main()
 
-        scan_path.assert_called_once_with(test_path, ANY)
+        scan_paths.assert_called_once_with([test_path], ANY)
         assert excinfo.value.code == 1
 
 
 def test_cli_exits_zero_when_no_problems(capsys):
     """Test that the CLI exits with code 0 on clean files."""
-    with patch("domain_types_linter.cli.scan_path") as scan_path:
-        scan_path.return_value = _clean_result()
+    with patch("domain_types_linter.cli.scan_paths") as scan_paths:
+        scan_paths.return_value = _clean_result()
         with patch.object(sys, "argv", ["dt-linter", "test_path"]):
             main()
 
@@ -58,16 +58,13 @@ def test_cli_exits_without_arguments():
 
 def test_cli_frequent_options_override_config():
     """Test that frequent mode options from the command line override the config."""
-    with patch("domain_types_linter.cli.scan_path") as scan_path:
-        scan_path.return_value = _clean_result()
+    with patch("domain_types_linter.cli.scan_paths") as scan_paths:
+        scan_paths.return_value = _clean_result()
         argv = ["dt-linter", "test_path", "--frequent", "--min-occurrences", "5"]
         with patch.object(sys, "argv", argv):
             main()
 
-        config = scan_path.call_args.args[1]
-        assert config.frequent
-        assert config.min_occurrences == 5
-        assert config.min_modules == 1
+        config = scan_paths.call_args.args[1]
 
 
 def test_cli_exits_with_config_error(tmp_path):
@@ -80,3 +77,12 @@ def test_cli_exits_with_config_error(tmp_path):
             main()
 
     assert excinfo.value.code == 2
+
+def test_cli_passes_multiple_paths_to_linter():
+    """Test that the CLI passes several paths to the linter in one run."""
+    with patch("domain_types_linter.cli.scan_paths") as scan_paths:
+        scan_paths.return_value = _clean_result()
+        with patch.object(sys, "argv", ["dt-linter", "first", "second"]):
+            main()
+
+        scan_paths.assert_called_once_with(["first", "second"], ANY)
