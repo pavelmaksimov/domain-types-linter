@@ -71,6 +71,8 @@ check-private = false
 check-nested = false
 # Check annotations of local variables inside functions (class and module attributes are always checked).
 check-local-variables = false
+# Skip these functions and methods entirely, with their bodies (e.g. "to_dict", "__eq__").
+exclude-functions = ["to_dict"]
 # Frequent mode, see below (CLI only).
 frequent = false
 min-occurrences = 3
@@ -107,6 +109,9 @@ Frequent mode needs the whole project, so it is available in the CLI only and is
   (in the CLI; Flake8 handles `noqa` comments itself).
 - `# dt: ignore` on the line of a `def` or `class` skips the whole function or class,
   including its body. Works in the CLI and in the Flake8 plugin.
+- Dunders with protocol-fixed signatures returning universal types are skipped by default
+  (`__hash__`, `__repr__`, `__str__`, numeric ones like `__int__`/`__len__`, etc.).
+  Add more names with `exclude-functions` (works in the CLI and in the Flake8 plugin).
 
 ```python
 def parse_row(row: dict) -> tuple:  # dt: ignore

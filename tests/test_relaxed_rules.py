@@ -42,6 +42,42 @@ def test_strict_by_default():
     """
     assert lint(code) == [(2, "DT004"), (5, "DT003"), (6, "DT004")]
 
+def test_protocol_fixed_dunders_are_skipped():
+    """Test that dunders with protocol-fixed signatures are skipped."""
+    code = """
+    class Entity:
+        def __hash__(self) -> int: ...
+        def __repr__(self) -> str: ...
+        def __str__(self) -> str: ...
+        def __len__(self) -> int: ...
+        def __bool__(self) -> bool: ...
+        def __int__(self) -> int: ...
+        def __eq__(self, other: str) -> bool: ...
+    """
+    assert lint(code) == [(9, "DT003")]
+
+def test_exclude_functions_config():
+    """Test that functions listed in exclude-functions are skipped with their bodies."""
+    code = """
+    class Entity:
+        def to_dict(self) -> dict: ...
+        def __eq__(self, other: str) -> bool: ...
+    """
+    config = Config(exclude_functions=["to_dict", "__eq__"])
+    assert lint(code, config) == []
+
+
+def test_exclude_functions_from_pyproject(tmp_path):
+    """Test that exclude-functions is read from pyproject.toml."""
+    path = write(
+        tmp_path / "pyproject.toml",
+        """
+        [tool.domain-types-linter]
+        exclude-functions = ["to_dict"]
+        """,
+    )
+    assert load_config(path).exclude_functions == ["to_dict"]
+
 
 def test_check_private_disabled():
     """Test that private functions, methods and classes are skipped together with their bodies."""

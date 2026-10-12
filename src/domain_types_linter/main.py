@@ -19,6 +19,31 @@ from domain_types_linter.types_and_codes import (
 # "# dt: ignore" on the line of a "def" or "class" skips the whole function or class.
 IGNORE_DEFINITION_RE = re.compile(r"#\s*dt:\s*ignore\b", re.IGNORECASE)
 
+# Dunder methods with protocol-fixed signatures returning universal types.
+# The data model dictates the returns (and params like "spec: str" in
+# "__format__"), so there is nothing domain-specific to check.
+# Used as the default for Config.exclude_functions.
+DEFAULT_EXCLUDED_FUNCTIONS = frozenset(
+    {
+        "__hash__",
+        "__repr__",
+        "__str__",
+        "__format__",
+        "__bytes__",
+        "__len__",
+        "__length_hint__",
+        "__int__",
+        "__float__",
+        "__complex__",
+        "__index__",
+        "__trunc__",
+        "__floor__",
+        "__ceil__",
+        "__round__",
+        "__bool__",
+    }
+)
+
 # A noqa comment without codes or with codes (noqa: DT003,DT004) skips problems on the line.
 # Used in the CLI only, flake8 handles noqa comments itself.
 NOQA_RE = re.compile(
@@ -249,9 +274,12 @@ class Linter(ast.NodeVisitor):
     def visit_function(self, node: FunctionNode) -> None:
         """Visit a function or async function definition node.
 
-        Checks the return type annotation and argument type annotations.
         Skips the function entirely if it is ignored by settings or by a "# dt: ignore" comment.
+        Functions listed in Config.exclude_functions are skipped entirely as well.
         """
+        if node.name in self.config.exclude_functions or node.name in DEFAULT_EXCLUDED_FUNCTIONS:
+            return
+
         if self.is_ignored_definition(node):
             return
 
