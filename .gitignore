@@ -2,6 +2,7 @@
 .python-version
 TODO.md
 .aiignore
+uv.lock
 
 # Python-generated files
 __pycache__/
